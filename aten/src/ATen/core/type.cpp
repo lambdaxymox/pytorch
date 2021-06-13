@@ -1069,6 +1069,10 @@ InterfaceTypePtr InterfaceType::create(QualifiedName qualifiedName, bool is_modu
       new InterfaceType(std::move(qualifiedName), is_module));
 }
 
+void ClassType::replaceMethod(torch::jit::Function* new_method, size_t index) {
+  methods_[index] = new_method;
+}
+
 void ClassType::addMethod(torch::jit::Function* method) {
   TORCH_CHECK(
       findMethod(method->name()) == nullptr,

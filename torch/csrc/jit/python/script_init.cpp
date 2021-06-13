@@ -1116,10 +1116,28 @@ void initJitScriptBindings(PyObject* module) {
                     force_outplace,
                     &self,
                     argument_names));
+
             const auto method_name = QualifiedName(*self.type()->name(), name);
-            auto fn = self._ivalue()->compilation_unit()->create_function(
-                method_name, graph);
-            self.type()->addMethod(fn);
+
+            auto prev_fn =
+                self._ivalue()->compilation_unit()->find_function(method_name);
+            if (prev_fn) {
+              auto methods = self.type()->methods();
+              size_t i = 0;
+              for (i = 0; i < methods.size(); i++) {
+                if (methods[i]->name() == method_name.name()) {
+                  break;
+                }
+              }
+              auto new_fn =
+                  self._ivalue()->compilation_unit()->replace_function(
+                      method_name, graph);
+              self.type()->replaceMethod(new_fn, i);
+            } else {
+              auto fn = self._ivalue()->compilation_unit()->create_function(
+                  method_name, graph);
+              self.type()->addMethod(fn);
+            }
             didFinishEmitModule(self);
           },
           py::arg("name"),

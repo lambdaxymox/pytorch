@@ -6,6 +6,8 @@
 #include <torch/csrc/jit/runtime/jit_exception.h>
 #include <exception>
 
+#include <iostream>
+
 #include <ATen/record_function.h>
 
 namespace torch {
@@ -46,14 +48,18 @@ namespace {
 void set_train_recurse(
     const c10::intrusive_ptr<c10::ivalue::Object>& obj,
     bool on) {
+  std::cout << "mobile: ivalue name: " << obj->name() << std::endl;
   if (auto slot = obj->type()->findAttributeSlot("training")) {
     obj->setSlot(*slot, on);
   } else {
     TORCH_INTERNAL_ASSERT(false, "'training' attribute not found");
   }
   for (const auto& slot : obj->slots()) {
-    if (slot.isObject()) {
-      set_train_recurse(slot.toObject(), on);
+    if (slot.isObject() && slot.toObjectRef().type()->is_module()) {
+      auto slot_obj = slot.toObject();
+      if (slot_obj->type()->hasAttribute("training")) {
+        set_train_recurse(slot.toObject(), on);
+      }
     }
   }
 }

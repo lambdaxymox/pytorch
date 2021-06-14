@@ -156,6 +156,8 @@ class Reducer {
   // Delay all reduce to be after all gradients' calculation is complete.
   void delay_all_reduce();
 
+  bool static_graph_first_bwd();
+
   // Weak reference to associated DDP logger. The reference is weak to avoid
   // refcycle between reducer and logger.
   void set_logger(std::weak_ptr<c10d::Logger> logger);
@@ -364,7 +366,13 @@ class Reducer {
   std::vector<VariableLocator> variable_locators_;
 
   // track the number of iterations to synchronize grads in training so far.
+  // This is the number of calls to the forward pass, not necessarily equal to
+  // number of calls to backward pass.
   long num_iterations_;
+  // Number of times backward() has been called. This is mainly used for static
+  // graph training to know when to populate the map of how many times grad
+  // hooks have been triggered.
+  long num_backward_calls_;
   // track the number of buckets that have been ready for
   // communication calls like allReduce or communication hooks.
   int num_buckets_ready_;
@@ -391,7 +399,13 @@ class Reducer {
   bool is_multi_device_module_ = false;
 
   // Following variables are to help build dynamic bucket order
+  // Whether the process of rebuilding buckets has occured.
   bool has_rebuilt_bucket_;
+  // Flag indicating all rebuilt param indices have been pushed. This is needed
+  // because there can be multiple calls to backward with retain_graph=True
+  // without a forward that actually rebuilds the buckets. In this case, we use
+  // this flag to avoid pushing parameters multiple times.
+  bool all_rebuilt_params_pushed_{false};
   std::vector<at::Tensor> rebuilt_params_;
   std::vector<int64_t> rebuilt_param_indices_;
   const int64_t bucket_bytes_cap_;
@@ -456,8 +470,7 @@ class Reducer {
   // get current cuda stream
   const c10::Stream get_current_stream();
   bool dynamic_graph_find_unused();
-  bool static_graph_first_iteration();
-  bool static_graph_after_first_iteration();
+  bool static_graph_after_first_bwd();
 
   // comm_hook_ is used to access the DDP communication hook if registered.
   std::unique_ptr<CommHookInterface> comm_hook_;

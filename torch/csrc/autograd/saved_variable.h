@@ -41,10 +41,6 @@ class TORCH_API SavedVariable {
     return data_.reset();
   }
 
-  void reset_grad_function() {
-    grad_fn_.reset();
-  }
-
  private:
   // This field contains either:
   // 1. the variable to save
@@ -62,15 +58,9 @@ class TORCH_API SavedVariable {
   // either the saved Tensor or the unpacked Tensor. See note [ Using ForwardGrad ]
   std::shared_ptr<ForwardGrad> fw_grad_;
 
-  // The gradient function associated with this node. If has_grad_fn
-  // is false, then this is a leaf node. Note that the grad_fn is not saved if
-  // it would create a circular reference. In that case, the grad_fn must be
-  // passed in to the unpack function when reconstructing the Variable.
-  std::shared_ptr<Node> grad_fn_;
   // Weak version of grad_fn_ that prevents leaks in rebase_history() for
   // inplace views.
   std::weak_ptr<Node> weak_grad_fn_;
-  std::weak_ptr<Node> grad_accumulator_;
   c10::VariableVersion version_counter_;
 
   uint32_t saved_version_ = 0;
